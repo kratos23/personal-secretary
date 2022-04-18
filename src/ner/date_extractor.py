@@ -1,11 +1,16 @@
-import datetime
+from datetime import datetime
+import logging
+from typing import List
 
 import dateparser
 from dateparser.search import search_dates
 from deeppavlov import configs, build_model
 
-from date_extractor_package.models import *
-import logging
+from src.ner.models import *
+from src.ner.models import Message
+from src.ner.models.date_extractor_input import DateExtractorInput
+
+from src.ner.models.date_extractor_result import DateExtractorResult
 
 
 class DateExtractor:
@@ -15,21 +20,15 @@ class DateExtractor:
     _NER_I_DATE = "I-DATE"
 
     def __init__(self):
-        logging.disable(logging.DEBUG)
-        logging.disable(logging.INFO)
         self._ner_model = build_model(configs.ner.ner_ontonotes_bert_mult, download=True)
 
     _date_parser_settings = {
-        'PREFER_DATES_FROM': 'future',
-        'RETURN_AS_TIMEZONE_AWARE': True,
-        'PARSERS': [
-            'custom-formats',
-            'absolute-time',
-            'timestamp'
-        ],
-        'SKIP_TOKENS': ['-', 'T'],
+        "PREFER_DATES_FROM": "future",
+        "RETURN_AS_TIMEZONE_AWARE": True,
+        "PARSERS": ["custom-formats", "absolute-time", "timestamp"],
+        "SKIP_TOKENS": ["-", "T"],
     }
-    _date_parser_languages = ['ru', 'en']
+    _date_parser_languages = ["ru", "en"]
     _date_parser_formats = ["%d.%m", "%d.%m.%Y"]
 
     def extract_date(self, extractor_input: DateExtractorInput) -> DateExtractorResult:
@@ -55,7 +54,7 @@ class DateExtractor:
         else:
             return DateExtractorResult.failure()
 
-    def _merge_dates(self, dates: [datetime], relative_base_timestamp: int) -> datetime:
+    def _merge_dates(self, dates: List[datetime], relative_base_timestamp: int) -> datetime:
         day_begin_moments = []
         for cur_date in dates:
             day_begin_moments.append(datetime(cur_date.year, cur_date.month, cur_date.day))
@@ -70,19 +69,21 @@ class DateExtractor:
             if cur_date.hour != 0 or cur_date.minute != 0 or cur_date.second != 0:
                 time = cur_date
                 break
-        result_date = result_date.replace(hour=time.hour, minute=time.minute, second=time.second,
-                                          microsecond=time.microsecond)
+        result_date = result_date.replace(
+            hour=time.hour, minute=time.minute, second=time.second, microsecond=time.microsecond
+        )
 
         return result_date
 
-    def _get_messages_as_text_list(self, messages_list: [Message]) \
-            -> [str]:
+    def _get_messages_as_text_list(self, messages_list: List[Message]) -> List[str]:
         result = []
         for message in messages_list:
             result.append(message.message_text)
         return result
 
-    def _extract_time_string(self, text: [str], entities: [str], source_text: str, is_valid_entity) -> [str]:
+    def _extract_time_string(
+        self, text: List[str], entities: List[str], source_text: str, is_valid_entity
+    ) -> List[str]:
         assert len(text) == len(entities)
 
         _STATE_IDLE = 0
@@ -122,30 +123,31 @@ class DateExtractor:
 
         return result
 
-    def _extract_words_from_source(self, source_text: str, words: [str]):
-        expected_str = ''.join(words)
+    def _extract_words_from_source(self, source_text: str, words: List[str]):
+        expected_str = "".join(words)
         for left in range(0, len(source_text)):
             for right in range(left + 1, len(source_text) + 1):
                 cur_str = source_text[left:right]
-                if cur_str.replace(' ', '') == expected_str:
+                if cur_str.replace(" ", "") == expected_str:
                     return cur_str.strip()
         return None
 
     def _parse_time_string(self, time_str: str, relative_base_timestamp: int):
-        time_str = time_str.replace('-', ' ')
+        time_str = time_str.replace("-", " ")
         time_str = self._replace_plain_hours(time_str)
 
         cur_settings = self._date_parser_settings.copy()
-        cur_settings['RELATIVE_BASE'] = datetime.fromtimestamp(relative_base_timestamp)
-        time_result = dateparser.parse(date_string=time_str, settings=cur_settings,
-                                       date_formats=self._date_parser_formats,
-                                       languages=self._date_parser_languages)
+        cur_settings["RELATIVE_BASE"] = datetime.fromtimestamp(relative_base_timestamp)
+        time_result = dateparser.parse(
+            date_string=time_str,
+            settings=cur_settings,
+            date_formats=self._date_parser_formats,
+            languages=self._date_parser_languages,
+        )
         if time_result is not None:
             return time_result
         else:
-            found_dates = search_dates(text=time_str,
-                                       settings=cur_settings,
-                                       languages=self._date_parser_languages)
+            found_dates = search_dates(text=time_str, settings=cur_settings, languages=self._date_parser_languages)
             if found_dates is not None:
                 return found_dates[0][1]
             else:
