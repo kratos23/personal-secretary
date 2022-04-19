@@ -17,7 +17,6 @@ class DateExtractorResult:
     def get_date_time(self):
         return self._datetime_value
 
-    @property
     def is_success(self):
         return self._datetime_value is not None
 
