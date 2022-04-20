@@ -171,6 +171,18 @@ class DateExtractorTestCase(unittest.TestCase):
             Message("some text", 1)
         ])
 
+    def test_today_and_time_only_one_message_eng(self):
+        self._preform_test_expect_time(
+            [
+                Message(
+                    "I remind you that today at 19:00 the Black Friday Poker World Championship will take place",
+                    1647606900
+                )
+            ],
+            1647619200
+        )  # пятница, 18 марта 2022 г., 19:00:00 GMT+03:00
+
+
     def _preform_test_expect_time(self, messages: [Message], expected_time_stamp):
         result = self._extract_date(messages)
         self.assertEqual(expected_time_stamp, result.get_date_time().timestamp())
