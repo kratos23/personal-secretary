@@ -1,4 +1,4 @@
-# DateTimeExtractor
+# DateExtractor
 
 ## Install
 ```bash
