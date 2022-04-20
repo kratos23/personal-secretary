@@ -8,3 +8,4 @@ python3.7 -m virtualenv MyEnv
 source MyEnv/bin/activate
 pip install deeppavlov==0.17.2
 python -m deeppavlov install ner_ontonotes_bert_mult
+pip install dateparser==1.1.1
