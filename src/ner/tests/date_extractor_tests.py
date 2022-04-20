@@ -156,7 +156,7 @@ class DateExtractorTestCase(unittest.TestCase):
                 ),
                 Message(
                     "кого с кем?",
-                    164959424
+                    1649594024
                 ),
                 Message(
                     "batching и data_loader",
@@ -164,6 +164,12 @@ class DateExtractorTestCase(unittest.TestCase):
                 ),
             ]
         )
+
+    def test_sorting_checked(self):
+        self.assertRaises(ValueError, self._extract_date, [
+            Message("some text", 2),
+            Message("some text", 1)
+        ])
 
     def _preform_test_expect_time(self, messages: [Message], expected_time_stamp):
         result = self._extract_date(messages)
