@@ -4,6 +4,7 @@ import src.bot as bot
 from inspect import getmembers, isfunction
 from urllib.parse import urlparse, parse_qs, urlunparse, urlencode
 from telebot.types import Message
+from src.google import generate_auth_url
 
 from src.storage import UserRepository
 
@@ -31,13 +32,7 @@ def start_command(message: Message):
     user_repository = UserRepository()
     user = user_repository.get_or_create(message.from_user.id)
     if not user.is_finished:
-        auth_url = bot.settings.google_auth_flow.authorization_url()[0]
-        parsed = urlparse(auth_url)
-        qs = parse_qs(parsed.query)
-        qs["state"] = message.from_user.id
-        new_qs = urlencode(qs, doseq=True)
-        auth_url = urlunparse([new_qs if i == 4 else x for i, x in enumerate(parsed)])
-
+        auth_url = generate_auth_url(message.from_user.id)
         bot.settings.bot.send_message(
             message.chat.id,
             f"Ваша [ссылка для регистрации]({auth_url})",

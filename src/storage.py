@@ -62,3 +62,7 @@ class UserRepository:
         with self._db_adapter.get_session() as session:
             update_fields = {getattr(DBUser, k): v for k, v in kwargs.items()}
             session.query(DBUser).filter_by(telegram_id=id).update(update_fields)
+
+    def delete(self, id: str) -> None:
+        with self._db_adapter.get_session() as session:
+            session.query(DBUser).filetr_by(telegram_id=id).delete()

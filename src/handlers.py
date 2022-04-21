@@ -1,12 +1,11 @@
-import logging
 import sys
 import src.bot as bot
 
 from inspect import getmembers, isfunction
 from telebot.types import Message as TgMessage
 from telebot.types import CallbackQuery
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+from src.google import cancel_event, insert_event
+from google.auth.exceptions import RefreshError
 
 from src.ner.models.date_extractor_input import DateExtractorInput
 from src.ner.models.message import Message as NerMessage
@@ -53,19 +52,22 @@ def cancel_callback(call: CallbackQuery):
     user_repository = UserRepository()
     user = user_repository.get(call.from_user.id)
     if user:
-        calendar_service = build("calendar", "v3", credentials=user.google_credentials)
         try:
-            calendar_service.events().delete(calendarId="primary", eventId=event_id).execute()
-        except HttpError:
-            pass
-        # XXX: parse_mode="Markdown" doesn't work for some reason
-        bot.settings.bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            text=f"<s>{call.message.text}</s>",
-            message_id=call.message.message_id,
-            reply_markup=None,
-            parse_mode="HTML",
-        )
+            cancel_event(user, event_id)
+            # XXX: parse_mode="Markdown" doesn't work for some reason
+            bot.settings.bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                text=f"<s>{call.message.text}</s>",
+                message_id=call.message.message_id,
+                reply_markup=None,
+                parse_mode="HTML",
+            )
+        except RefreshError:
+            bot.settings.bot.send_message(
+                call.message.chat.id,
+                "Ваш Google аккаунт ограничил доступ к нашему боту, если вы хотите продолжить работу, пожалуйста, зарегистрируйтесь заново командой /start.",
+            )
+            user_repository.delete(user.telegram_id)
 
 
 def text_handler(message: TgMessage):
@@ -84,21 +86,18 @@ def text_handler(message: TgMessage):
                 message.chat.id, "К сожалению, нам не удалось извлечь дату из этого сообщения."
             )
         else:
-            calendar_service = build("calendar", "v3", credentials=user.google_credentials)
-            event = {
-                "summary": "Personal Secretary Bot event",
-                "description": message.text,
-                "start": {"dateTime": r._datetime_value.isoformat() + "+03:00", "timeZone": "Europe/Moscow"},
-                "end": {"dateTime": r._datetime_value.isoformat() + "+03:00", "timeZone": "Europe/Moscow"},
-                "reminders": {
-                    "useDefault": True,
-                },
-            }
-            event = calendar_service.events().insert(calendarId="primary", body=event).execute()
-            bot.settings.bot.send_message(
-                message.chat.id,
-                "Событие успешно создано.",
-                reply_markup=EventMenuFactory.generate(event.get("id"), event.get("htmlLink")),
-            )
+            try:
+                event = insert_event(user, r._datetime_value, message.text)
+                bot.settings.bot.send_message(
+                    message.chat.id,
+                    "Событие успешно создано.",
+                    reply_markup=EventMenuFactory.generate(event.get("id"), event.get("htmlLink")),
+                )
+            except RefreshError:
+                bot.settings.bot.send_message(
+                    message.chat.id,
+                    "Ваш Google аккаунт ограничил доступ к нашему боту, если вы хотите продолжить работу, пожалуйста, зарегистрируйтесь заново командой /start.",
+                )
+                user_repository.delete(user.telegram_id)
     else:
         bot.settings.bot.send_message(message.chat.id, "Вы еще не зарегистрированны. Для регистрации напишите /start.")
