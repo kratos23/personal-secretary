@@ -79,6 +79,11 @@ class DateExtractor:
         result = []
         for message in messages_list:
             result.append(message.message_text)
+        for i in range(1, len(messages_list)):
+            prev_message = messages_list[i - 1]
+            cur_message = messages_list[i]
+            if cur_message.sent_timestamp < prev_message.sent_timestamp:
+                raise ValueError("Messages must be sorted via sent_timestamp")
         return result
 
     def _extract_time_string(

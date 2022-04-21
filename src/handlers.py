@@ -81,7 +81,7 @@ def text_handler(message: TgMessage):
     if user and user.is_finished:
         input_data = DateExtractorInput([NerMessage(message_text=message.text, sent_timestamp=message.date)])
         r = bot.settings.ner.extract_date(input_data)
-        if not r.is_success:
+        if not r.is_success():
             bot.settings.bot.send_message(
                 message.chat.id, "К сожалению, нам не удалось извлечь дату из этого сообщения."
             )
